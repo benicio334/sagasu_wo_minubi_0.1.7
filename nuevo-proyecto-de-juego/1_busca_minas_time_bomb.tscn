@@ -1,0 +1,85 @@
+[gd_scene format=3 uid="uid://d1uvk20bwmy4c"]
+
+[ext_resource type="Texture2D" uid="uid://dmh4jk0segdtr" path="res://Tiles.png" id="1_5t4us"]
+[ext_resource type="Script" uid="uid://bwq6mieh62udr" path="res://1_busca_minas_time_bomb.gd" id="2_5t4us"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tl27k"]
+texture = ExtResource("1_5t4us")
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+0:2/0 = 0
+1:2/0 = 0
+2:2/0 = 0
+3:2/0 = 0
+0:3/0 = 0
+1:3/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_a28x8"]
+sources/0 = SubResource("TileSetAtlasSource_tl27k")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7xn0v"]
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.63358283, 0.014543621, 0.09420694, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tl27k"]
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0.8784314, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="BuscaMinas" type="TileMap" unique_id=357370138]
+texture_filter = 1
+scale = Vector2(2, 2)
+tile_set = SubResource("TileSet_a28x8")
+format = 2
+script = ExtResource("2_5t4us")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1546791928]
+
+[node name="PanelTiempo" type="PanelContainer" parent="CanvasLayer" unique_id=263771486]
+offset_left = 430.0
+offset_top = 10.0
+offset_right = 530.0
+offset_bottom = 50.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_7xn0v")
+
+[node name="LabelTiempo" type="Label" parent="CanvasLayer/PanelTiempo" unique_id=465646351]
+layout_mode = 2
+text = "Tiempo Restante
+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Timer" type="Timer" parent="CanvasLayer" unique_id=1470141949]
+
+[node name="PanelEstado" type="PanelContainer" parent="CanvasLayer" unique_id=686988900]
+offset_right = 160.0
+offset_bottom = 53.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_tl27k")
+
+[node name="LabelEstado" type="Label" parent="CanvasLayer/PanelEstado" unique_id=246873210]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="timeout" from="CanvasLayer/Timer" to="." method="_on_timer_timeout"]
