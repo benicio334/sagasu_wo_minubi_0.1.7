@@ -17,11 +17,15 @@ var cells : Array[int]
 var cells_alrededor : Array[int]
 var offsetCoords : Vector2i
 
+
 # CAMBIO 6-1: Esto para tener la ubicación del tablero para moverlo
 var posicion_inicial : Vector2
+var posicion_auxiliar : Vector2
 # CAMBIO 6-2: Acá van las posibilidades de cada acción, cada una tiene su función
 #CAMBIO 6-3
 var probabilidad_resbalar := 0.80
+
+
 #CAMBIO 6-4
 var probabilidad_girar := 0.50
 # herramienta sorpresa que nos ayudará mas tarde
@@ -31,12 +35,12 @@ var probabilidad_caer := 0.30
 # otra herramienta sorpresa que nos ayudará mas tarde
 var caido=false
 # CAMBIO 6-2.1 Esta es la probabilidad de que cada segundo se active la función de las acciones como si se hiciera un click
-var probabilidad_accion_tiempo := 0.30
+var probabilidad_accion_tiempo := 0.10
 
+var movido = false
 
 
 # Se activa cuando empieza la escena
-var movido = false
 var centro : Vector2
 func _ready() -> void:
 	$CanvasLayer/BotonLevantar.hide()
@@ -60,6 +64,7 @@ func _ready() -> void:
 	#6-1.1 después de calcular la posición cuando empieza, se iguala a posición inical, para saber
 	# donde regresarlo después de moverlo
 	posicion_inicial = position
+	posicion_auxiliar = position
 	var board_size_scaled := board_size * scale_factor
 	#CAMBIO 6-1.1: Acá calculo el centro porque lo necesito para girar el tablero sobre su propio eje
 	centro = posicion_inicial + board_size_scaled / 2.0
@@ -111,6 +116,8 @@ func setupmines(avoid : Vector2i) -> void:
 
 # Detectar Clicks en las cells
 func _input(event: InputEvent) -> void:
+	if muerte==true:
+		$CanvasLayer/PanelEstado/LabelEstado.text = "Kaboom"
 	#No hace nada si hay gameover
 	#6-5.1 Y tampoco hace nada si está caido el tablero
 	if muerte==false&&caido==false:
@@ -241,9 +248,10 @@ func showmeyalltrueforms(avoid : Vector2i) -> void:
 func _on_timer_timeout() -> void:
 	tiempo_restante -= 1
 	$CanvasLayer/PanelTiempo/LabelTiempo.text = str(tiempo_restante)
+
 #6-2.3 Lo de antes para que se mueva por tiempo, pero solo si el tablero no está 
 # ya corrido, porque sino puede irse demasiado lejos y pasar demasiadas cosas juntas
-	if randf() < probabilidad_accion_tiempo && movido == false:
+	if randf() < probabilidad_accion_tiempo:
 		moverse()
 		
 		
@@ -279,21 +287,21 @@ func resbalarse() -> void:
 	var tiempo_carga := randf_range(0.5, 2.0)
 	#switch para donde se mueve, no lo hice con randf porque sinó me podía mover 1 milimetro o 12 km
 	match movimiento:
-		1: position += Vector2(100, 0)
-		2: position += Vector2(-200, -200)
-		3: position += Vector2(0, 100)
-		4: position += Vector2(-100, 0)
-		5: position += Vector2(0, -100)
-		6: position += Vector2(100, 100)
-		7: position += Vector2(-100, -100)
-		8: position += Vector2(-100, 100)
-		9: position += Vector2(100, -100)
-		10: position += Vector2(200, 200)
+		1: position = + Vector2(100, 0)
+		2: position = + Vector2(-200, -200)
+		3: position = + Vector2(0, 100)
+		4: position = + Vector2(-100, 0)
+		5: position = + Vector2(0, -100)
+		6: position = + Vector2(100, 100)
+		7: position =  + Vector2(-100, -100)
+		8: position =  + Vector2(-100, 100)
+		9: position = + Vector2(100, -100)
+		10: position = + Vector2(200, 200)
 	$CanvasLayer/PanelEstado/LabelEstado.text = "Uy, se te resbaló"
 	#espera para confundir
 	await get_tree().create_timer(tiempo_carga).timeout
 	#se pone bien
-	position = posicion_inicial
+	position = posicion_auxiliar
 	#deja ya que se mueva por tiempo
 	movido = false
 	$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
@@ -303,7 +311,7 @@ func girarse() -> void:
 	# como rota
 	var movimiento:= randi_range(1, 4)
 	#en este caso solo es el retraso para que se pueda seguir moviendo por tiempo, porque no restaura so posición
-	var tiempo_carga := randf_range(0.5, 2.0)
+	var tiempo_carga := randf_range(2.5, 3.0)
 	# calcula la diferencia entre la esquina de la pantalla (posición inicial) y el centro, para usarlao ahora
 	var offset := centro - posicion_inicial
 	while rotation_degrees==grados:
@@ -318,10 +326,13 @@ func girarse() -> void:
 	# Mantiene el centro quieto mientras gira
 	# rota la distancia entre la esquina y el centro del tablero y lo mueve hasta ahí, muy rara esta macumba. 
 	# Y pasa los grados a randianes porque es la unidad que toma vector2
+	posicion_auxiliar = position
 	position = centro - offset.rotated(deg_to_rad(grados))
 	$CanvasLayer/PanelEstado/LabelEstado.text = "Uy, se te dió vuelta"
 	#espera para confundir
 	await get_tree().create_timer(tiempo_carga).timeout
+	position = posicion_auxiliar
+	rotation_degrees=0
 	movido = false
 	$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
 
@@ -330,33 +341,35 @@ func caerse() -> void:
 	#para que no siga hasta que lo levantes
 	caido=true
 	# lo manda fuera de la vista. Si por alguna razón se sigue viendo hay que mandarlo más lejos
-	position= Vector2(1000, 1000)
 	$CanvasLayer/PanelEstado/LabelEstado.text = "Uy, se te cayó"
 	$CanvasLayer/BotonLevantar.show()
+	posicion_auxiliar=position
+	position= Vector2(1000, 1000)
 	
 
 # 6-6 Randomiza cuál de todas las acciones ocurre
 func moverse() -> void:
-	var movimiento= randi_range(1, 3)
-	match movimiento:
-		1: 
-			# Si la probabilidad de que ocurra da false, simplemente no hace nada
-			if randf()<probabilidad_resbalar: 
-				movido = true
-				resbalarse()
-		2: 
-			if randf()<probabilidad_girar: 
-				movido = true
-				girarse()
-		3: 
-			if randf()<probabilidad_caer: 
-				movido = true
-				caerse()
+	if movido == false && caido==false:
+		var movimiento= randi_range(1, 3)
+		match movimiento:
+			1: 
+				# Si la probabilidad de que ocurra da false, simplemente no hace nada
+				if randf()<probabilidad_resbalar: 
+					movido = true
+					resbalarse()
+			2: 
+				if randf()<probabilidad_girar: 
+					movido = true
+					girarse()
+			3: 
+				if randf()<probabilidad_caer: 
+					movido = true
+					caerse()
 
 #6-5.3 cuando se apreta el botón, bastante indicativo el nombre
 func _on_boton_levantar_pressed() -> void:
 	#vuelve el tablero a la posición normal, saca el botón y te deja seguir jugando (y que se mueva por tiempo obvio)
-	position=posicion_inicial
+	position=posicion_auxiliar
 	$CanvasLayer/BotonLevantar.hide()
 	caido = false
 	movido = false

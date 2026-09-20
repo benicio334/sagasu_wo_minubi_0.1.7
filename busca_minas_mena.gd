@@ -8,7 +8,7 @@ const cell_columna := 16
 const cell_fila := 16
 const mine_count := int(cell_columna * cell_fila * 0.20)
 #Tiempo para jugar, cuando partida empezada es true se activa 
-var tiempo_restante := 100
+var tiempo_restante := 1000
 var partida_empezada := false
 var panel_size := Vector2(100, 40)
 #Muerte es gameover, cells la cantidad de casillas, cells_alrededor se usa para revelar cuando tocás una bien
@@ -17,14 +17,14 @@ var cells : Array[int]
 var cells_alrededor : Array[int]
 var offsetCoords : Vector2i
 #CAMBIO 7-1: Los y el tiempo que valen. Primero ibas a empezar con 1, por eso se llamaban vidas, pero me arrepentí, y así quedó
-var vidas := 0
+var vidas := 1
 var tiempo_extra :=10
 #lo uso solo dos veces, peroe es más comodo desde acá, para cuanto tarda en cambiar el label estado
 var delay_await:=1.5
 #CAMBIO 7-2 variables del totem (casilla)
 var totem_activo := false
 var posicion_totem : Vector2i
-var tiempo_totem := 1.0
+var tiempo_totem := 2.0
 var probabilidad_totem:= 0.1
 #CAMBIO 7-3 variables del creeper
 var creeper_activo := false
@@ -124,27 +124,64 @@ func _input(event: InputEvent) -> void:
 				#suma vidas (osea totems (o sea vidas))
 				vidas += 1
 				$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
-				$CanvasLayer/PanelEstado/LabelEstado.text = "SIII TOTEM"
 				cells[getCellIndex(cellAtMouse)] = -1
 				#vuelve a ser casilla sin revelar
 				set_cell(0, cellAtMouse, 0, Vector2i(0, 0))
+				$CanvasLayer/PanelEstado/LabelEstado.text = "SIII TOTEM"
+				await get_tree().create_timer(delay_await).timeout
+				$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
 				#libera para otro totem
 				totem_activo = false
 				return
 			if getAtlasCoords(cellAtMouse) == Vector2i(0, 0):
 				if cells.has(0):
-					#CAMBIO 7-3.1: si se hace click bien pero hay un creeper, igualmente hay muerte
-					if creeper_activo:
+						# CAMBIO 7-1.5 Por si clickea mal y encima hay un creeper
+					if cells[getCellIndex(cellAtMouse)] == 0 && vidas<=0 && creeper_activo:
+						muerte = true
+						$CanvasLayer/Timer.stop()
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Creeper y Mina al mismo tiempo? Que mal"
+						showmeyalltrueforms(cellAtMouse)
+						
+						# CAMBIO 7-1.6 Lo mismo pero si hay totems
+					if cells[getCellIndex(cellAtMouse)] == 0 && vidas>0 && creeper_activo:
+						cells[getCellIndex(posicion_creeper)] = -1
+						set_cell(0, posicion_creeper, 0, Vector2i(0, 0))
+						creeper_activo = false
+						tiempo_restante=tiempo_restante_guardado
+						$CanvasLayer/PanelTiempo/LabelTiempo.text = str(tiempo_restante)
+						vidas -=1
+						$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Creeper y Mina al mismo tiempo? Que mal"
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Te explotó un creeper, perdiste una vida"
+						await get_tree().create_timer(delay_await).timeout
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
+						
+					#CAMBIO 7-3.1: si se hace click bien pero hay un creeper (y no vidas), igualmente hay muerte
+					if creeper_activo && vidas>0:
+						cells[getCellIndex(posicion_creeper)] = -1
+						set_cell(0, posicion_creeper, 0, Vector2i(0, 0))
+						creeper_activo = false
+						tiempo_restante=tiempo_restante_guardado
+						$CanvasLayer/PanelTiempo/LabelTiempo.text = str(tiempo_restante)
+						vidas -=1
+						$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Te explotó un creeper, perdiste una vida"
+						await get_tree().create_timer(delay_await).timeout
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
+						return
+						#lo mismo pero con vidas, perdes una
+					if creeper_activo && vidas<=0:
+						vidas -=1
+						$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: 0"
+						$CanvasLayer/PanelEstado/LabelEstado.text = "Te explotó un creeper, perdiste"
 						muerte=true
 						$CanvasLayer/Timer.stop()
 						showmeyalltrueforms(cellAtMouse)
-						$CanvasLayer/PanelEstado/LabelEstado.text = "Te explotó el Creeper"
 						return
 					eventos_mena()
 					trueForm(cellAtMouse)
 					checkWin()
 			
-			# si el clickea una mina (0), shinu
 			#CAMBIO 7-1.2 Ahora solo morís si no tenés totems
 					if cells[getCellIndex(cellAtMouse)] == 0 && vidas<=0:
 						muerte = true
@@ -154,10 +191,12 @@ func _input(event: InputEvent) -> void:
 					else:
 						if cells[getCellIndex(cellAtMouse)] == 0 && vidas>0:
 							vidas -=1
+							$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
 							$CanvasLayer/PanelEstado/LabelEstado.text = "Más cuidado con las TNT, gastaste un totem"
 							$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
 							await get_tree().create_timer(delay_await).timeout
 							$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
+							return
 						#Sino, siga siga
 				else:
 					setupmines(cellAtMouse)
@@ -241,6 +280,7 @@ func trueformalrededor(cellCoords : Vector2i) -> void:
 			if getCellIndex(offsetCoords) > -1:
 					if getAtlasCoords(offsetCoords) == Vector2i(0,0) or getAtlasCoords(offsetCoords) == Vector2i(1,0):
 						trueForm(offsetCoords)
+						muleta()
 
 func getAtlasCoords(cellCoords : Vector2i) -> Vector2i:
 	return get_cell_atlas_coords(0, cellCoords)
@@ -263,13 +303,15 @@ func showmeyalltrueforms(avoid : Vector2i) -> void:
 #función para timer
 func _on_timer_timeout() -> void:
 	tiempo_restante -= 1
+	#oculta las casillas explotadas, para que te olvides
+	muleta()
 	$CanvasLayer/PanelTiempo/LabelTiempo.text = str(tiempo_restante)
 	
 	#CAMBIO 7-1.3 lo mismo que el  7-1.2 pero por tiempo
 	if tiempo_restante <= 0 && vidas<=0:
 		muerte = true
 		$CanvasLayer/Timer.stop()
-		$CanvasLayer/PanelEstado/LabelEstado.text = "Se acabó el tiempo"
+		$CanvasLayer/PanelEstado/LabelEstado.text = "Se acabó el tiempo, perdiste"
 		showmeyalltrueforms(Vector2i(-1, -1))
 	else: 
 		if tiempo_restante <= 0 && vidas>0:
@@ -282,12 +324,14 @@ func _on_timer_timeout() -> void:
 			$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
 	
 	#CAMBIO 7-1.4 lo mismo que el  7-1.3 pero por con creepers
-	if tiempo_restante <= 0 && creeper_activo && vidas<0:
+	if tiempo_restante <= 0 && creeper_activo && vidas<=0:
 		$CanvasLayer/PanelEstado/LabelEstado.text = "¡El Creeper explotó!, moriste"
 		creeper_activo = false
 		muerte=true
 	else:
 		if tiempo_restante <= 0 && creeper_activo && vidas>0:
+			vidas -=1
+			$CanvasLayer/PanelVidas/LabelVidas.text = "Totems: " + str(vidas)
 			cells[getCellIndex(posicion_creeper)] = -1
 			set_cell(0, posicion_creeper, 0, Vector2i(0, 0))
 			creeper_activo = false
@@ -381,3 +425,12 @@ func _on_boton_correr_pressed() -> void:
 		$CanvasLayer/PanelEstado/LabelEstado.text = "Escapaste"
 		await get_tree().create_timer(delay_await).timeout
 		$CanvasLayer/PanelEstado/LabelEstado.text = "Jugando"
+		
+#para solucionar el problema de que a veces mostravas calaveras cuando no debía
+func muleta() -> void:
+	var cellCoords : Vector2i
+	for y in range(cell_columna):
+		for x in range(cell_fila):
+			cellCoords = Vector2i(x, y)
+			if getAtlasCoords(cellCoords) ==  Vector2i(0, 3):
+					set_cell(0, cellCoords, 0, Vector2i(0, 0))
